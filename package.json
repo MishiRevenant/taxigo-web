@@ -1,0 +1,47 @@
+{
+  "name": "taxigo-web",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TaxiGo - SPA de Reservas de Taxi",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "lint": "eslint . --ext .vue,.ts,.tsx --fix",
+    "docker:build": "docker build -t taxigo-web:latest .",
+    "docker:run": "docker run -p 3000:80 taxigo-web:latest",
+    "docker:up": "docker-compose up -d"
+  },
+  "dependencies": {
+    "@types/leaflet": "^1.9.8",
+    "@vee-validate/zod": "^4.15.1",
+    "axios": "^1.6.8",
+    "date-fns": "^3.3.1",
+    "leaflet": "^1.9.4",
+    "pinia": "^2.1.7",
+    "pinia-plugin-persistedstate": "^3.2.1",
+    "vee-validate": "^4.15.1",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.25",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "@vue/tsconfig": "^0.9.0",
+    "autoprefixer": "^10.4.27",
+    "msw": "^2.2.13",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.4.2",
+    "vite": "^5.2.0",
+    "vue-tsc": "^2.0.6"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

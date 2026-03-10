@@ -1,0 +1,27 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: taxigo-web:latest
+    container_name: taxigo-web
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+  # Development service using Vite dev server
+  app-dev:
+    image: node:20-alpine
+    container_name: taxigo-web-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    profiles:
+      - dev
