@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { io, Socket } from 'socket.io-client'
 import { useAuthStore } from '@/stores/auth'
 import { useTripStore } from '@/stores/trip'
@@ -15,21 +15,32 @@ const isConnected = ref(false)
  * Listens for real-time trip events from the backend and updates stores.
  */
 export function useSocket() {
-    const authStore = useAuthStore()
-    const tripStore = useTripStore()
-    const historyStore = useHistoryStore()
-    const { addToast } = useToast()
-
     function connectSocket() {
-        if (socket?.connected) return
+        // Guard: if a socket already exists (connecting OR connected), don't create another
+        if (socket) {
+            console.log('[WS] Socket already exists, skipping creation')
+            return
+        }
+
+        // Lazy-load stores only when connecting (avoids Pinia init issues)
+        const authStore = useAuthStore()
+        const tripStore = useTripStore()
+        const historyStore = useHistoryStore()
+        const { addToast } = useToast()
 
         const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api')
             .replace(/\/api\/?$/, '')
+
+        console.log('[WS] Connecting to:', baseUrl)
 
         socket = io(baseUrl, {
             transports: ['websocket', 'polling'],
             withCredentials: true,
             autoConnect: true,
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
         })
 
         socket.on('connect', () => {
@@ -39,17 +50,24 @@ export function useSocket() {
             // Join personal room so we receive trip updates
             if (authStore.user) {
                 socket?.emit('join', authStore.user.id)
+                console.log('[WS] Joined room user:' + authStore.user.id)
             }
 
             // Drivers also join the broadcast room for new requests
             if (authStore.isDriver) {
                 socket?.emit('join:drivers')
+                console.log('[WS] Joined drivers room')
             }
         })
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', (reason) => {
             isConnected.value = false
-            console.log('[WS] Disconnected')
+            console.log('[WS] Disconnected:', reason)
+        })
+
+        socket.on('connect_error', (err) => {
+            console.warn('[WS] Connection error:', err.message)
+            isConnected.value = false
         })
 
         // ── Trip lifecycle events ─────────────────────────────────────
@@ -58,7 +76,6 @@ export function useSocket() {
         socket.on('trip:requested', (trip: Trip) => {
             console.log('[WS] trip:requested', trip.id)
             if (authStore.isDriver) {
-                // Add to available trips list if not already there
                 const exists = tripStore.availableTrips.find(t => t.id === trip.id)
                 if (!exists) {
                     tripStore.availableTrips.unshift(trip)
@@ -74,7 +91,6 @@ export function useSocket() {
                 tripStore.currentTrip = trip
                 addToast({ type: 'success', title: 'Conductor asignado', message: `${trip.driver?.name || 'Un conductor'} aceptó tu viaje` })
             }
-            // Remove from available list for drivers
             if (authStore.isDriver) {
                 tripStore.availableTrips = tripStore.availableTrips.filter(t => t.id !== trip.id)
             }
@@ -108,13 +124,12 @@ export function useSocket() {
                 tripStore.stopPolling()
                 addToast({ type: 'warning', title: 'Viaje cancelado' })
             }
-            // Also remove from available list
             if (authStore.isDriver) {
                 tripStore.availableTrips = tripStore.availableTrips.filter(t => t.id !== trip.id)
             }
         })
 
-        // Generic update (from PATCH endpoint)
+        // Generic update (from PATCH endpoint — fallback)
         socket.on('trip:updated', (trip: Trip) => {
             console.log('[WS] trip:updated', trip.id)
             if (tripStore.currentTrip?.id === trip.id) {

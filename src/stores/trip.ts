@@ -32,7 +32,13 @@ export const useTripStore = defineStore('trip', () => {
         isLoading.value = true
         try {
             const trip = await tripService.getActiveTrip()
-            currentTrip.value = trip
+            // Only update if we got a trip, OR if there's no current trip in a terminal state
+            // This prevents overwriting a 'completed' trip (from WebSocket) with null (from polling)
+            if (trip) {
+                currentTrip.value = trip
+            } else if (!currentTrip.value || !['completed', 'cancelled'].includes(currentTrip.value.status)) {
+                currentTrip.value = null
+            }
             return trip
         } finally {
             isLoading.value = false
@@ -109,11 +115,29 @@ export const useTripStore = defineStore('trip', () => {
         isPolling.value = true
         pollInterval = setInterval(async () => {
             if (!currentTrip.value) return
+            // Don't poll for terminal states
+            if (['completed', 'cancelled'].includes(currentTrip.value.status)) {
+                stopPolling()
+                return
+            }
             try {
                 const trip = await tripService.getActiveTrip()
                 if (trip) {
                     currentTrip.value = trip
                     if (trip.status === 'completed' || trip.status === 'cancelled') {
+                        stopPolling()
+                    }
+                } else if (currentTrip.value) {
+                    // Active trip returned null — the trip may have been completed/cancelled
+                    // Fetch the trip directly by ID to get the final state
+                    try {
+                        const final = await tripService.getTripById(currentTrip.value.id)
+                        if (final) {
+                            currentTrip.value = final
+                            stopPolling()
+                        }
+                    } catch {
+                        // Trip not found, just clear
                         stopPolling()
                     }
                 }
