@@ -33,9 +33,35 @@ export const tripService = {
         return data.data
     },
 
-    async updateTripStatus(tripId: string, status: 'on_ride' | 'completed' | 'cancelled'): Promise<Trip> {
-        const { data } = await api.patch<{ data: Trip }>(`/trips/${tripId}/status`, { status })
+    /** Use the dedicated start endpoint (POST /trips/:id/start) */
+    async startTrip(tripId: string): Promise<Trip> {
+        const { data } = await api.post<{ data: Trip }>(`/trips/${tripId}/start`)
         return data.data
+    },
+
+    /** Use the dedicated complete endpoint (POST /trips/:id/complete) */
+    async completeTrip(tripId: string): Promise<Trip> {
+        const { data } = await api.post<{ data: Trip }>(`/trips/${tripId}/complete`)
+        return data.data
+    },
+
+    /** Use the dedicated cancel endpoint (POST /trips/:id/cancel) */
+    async cancelTrip(tripId: string): Promise<Trip> {
+        const { data } = await api.post<{ data: Trip }>(`/trips/${tripId}/cancel`)
+        return data.data
+    },
+
+    /** Legacy generic status update (keep for backwards compatibility) */
+    async updateTripStatus(tripId: string, status: 'on_ride' | 'completed' | 'cancelled'): Promise<Trip> {
+        // Route to the proper dedicated endpoint
+        switch (status) {
+            case 'on_ride':
+                return this.startTrip(tripId)
+            case 'completed':
+                return this.completeTrip(tripId)
+            case 'cancelled':
+                return this.cancelTrip(tripId)
+        }
     },
 
     async getTripById(tripId: string): Promise<Trip> {

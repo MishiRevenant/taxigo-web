@@ -3,6 +3,7 @@ import { onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTripStore } from '@/stores/trip'
 import { useHistoryStore } from '@/stores/history'
+import { useSocket } from '@/composables/useSocket'
 import AppLayout from '@/layouts/AppLayout.vue'
 import TripStatusBadge from '@/components/TripStatusBadge.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -10,6 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 const auth = useAuthStore()
 const tripStore = useTripStore()
 const historyStore = useHistoryStore()
+const { isConnected } = useSocket()
 
 const hasActiveTrip = computed(() =>
   tripStore.currentTrip && ['requested','accepted','on_ride'].includes(tripStore.currentTrip.status),

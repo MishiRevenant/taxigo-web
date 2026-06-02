@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTripStore } from '@/stores/trip'
 import { useHistoryStore } from '@/stores/history'
+import { useSocket } from '@/composables/useSocket'
 import AppLayout from '@/layouts/AppLayout.vue'
 import TripCard from '@/components/TripCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -10,10 +11,14 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 const auth = useAuthStore()
 const tripStore = useTripStore()
 const historyStore = useHistoryStore()
+const { isConnected } = useSocket()
 
 const hasActiveTrip = computed(() =>
   tripStore.currentTrip && ['accepted','on_ride'].includes(tripStore.currentTrip.status),
 )
+
+// Fallback polling interval (30s) – WebSocket is the primary channel
+let fallbackPoll: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   await Promise.all([
@@ -21,6 +26,16 @@ onMounted(async () => {
     tripStore.fetchAvailableTrips(),
     historyStore.fetchHistory(),
   ])
+  // Light fallback poll in case WS disconnects
+  fallbackPoll = setInterval(() => {
+    if (!isConnected.value) {
+      tripStore.fetchAvailableTrips()
+    }
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (fallbackPoll) clearInterval(fallbackPoll)
 })
 
 async function handleAccept(tripId: string) {
@@ -43,9 +58,11 @@ function formatCurrency(n: number) {
           </h1>
           <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Terminal de Control de Flota</p>
         </div>
-        <div class="flex items-center gap-3 px-6 py-3 rounded-2xl border border-accent/20 bg-accent/5 text-accent text-[10px] font-black uppercase tracking-widest shadow-glow">
-          <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shadow-glow"></span>
-          Sistema en Línea
+        <div class="flex items-center gap-3 px-6 py-3 rounded-2xl border bg-accent/5 text-[10px] font-black uppercase tracking-widest shadow-glow"
+             :class="isConnected ? 'border-accent/20 text-accent' : 'border-red-500/20 text-red-400'">
+          <span class="w-1.5 h-1.5 rounded-full animate-pulse shadow-glow"
+                :class="isConnected ? 'bg-accent' : 'bg-red-500'"></span>
+          {{ isConnected ? 'Tiempo Real Activo' : 'Reconectando...' }}
         </div>
       </div>
 
