@@ -28,7 +28,7 @@ export function useSocket() {
         const historyStore = useHistoryStore()
         const { addToast } = useToast()
 
-        const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api')
+        const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api')
             .replace(/\/api\/?$/, '')
 
         console.log('[WS] Connecting to:', baseUrl)
